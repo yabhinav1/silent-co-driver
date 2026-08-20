@@ -123,6 +123,11 @@ Nothing in `app.py` is specific to this Grand Prix. Regenerate `laps.csv` and
 `radio.csv` for any race the dataset covers and list the drivers in `DRIVERS` at
 the top of `app.py`.
 
+## Team
+
+- **Abhinav Yadav**
+- **Divesh Arora**
+
 ## Credits
 
 Built for AI Race Month · GrandPrix. Data and model attribution, and the
