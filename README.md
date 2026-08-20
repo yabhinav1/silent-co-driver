@@ -3,7 +3,7 @@
 Reads driver stress from Formula 1 team radio, and lines it up against the real
 lap times nobody connects it to.
 
-**[📊 Presentation (Google Slides)](https://docs.google.com/presentation/d/1AaIo3UI1Un_qu4gjVJyaLaldk3kjIcnG4czPLQR0cpM/edit?usp=sharing)** — the 10-slide walkthrough: the problem, how it works, and why the lap join checks itself.
+**[Presentation (Google Slides)](https://docs.google.com/presentation/d/1AaIo3UI1Un_qu4gjVJyaLaldk3kjIcnG4czPLQR0cpM/edit?usp=sharing)** — the 10-slide walkthrough: the problem, how it works, and why the lap join checks itself.
 
 ![The Silent Co-Driver](docs/screenshot.png)
 
