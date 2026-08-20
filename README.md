@@ -132,7 +132,7 @@ the top of `app.py`.
 
 ## Links
 
-- **[Presentation (Google Slides)](https://docs.google.com/presentation/d/1AaIo3UI1Un_qu4gjVJyaLaldk3kjIcnG4czPLQR0cpM/edit?usp=sharing)**
+- **[Presentation (Google Slides)](https://docs.google.com/presentation/d/18KpD-N1qZz-IirTM5YQVlFXKfGk4JwXepVmh9bDD5ng/edit?usp=sharing)**
 - **[Dataset: MikCil/f1-team-radio](https://huggingface.co/datasets/MikCil/f1-team-radio)**
 
 ## Credits
