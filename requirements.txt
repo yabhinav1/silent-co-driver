@@ -1,0 +1,10 @@
+ctranslate2==4.8.1
+fastapi==0.141.1
+faster-whisper==1.2.1
+huggingface-hub==1.28.0
+librosa==1.0.0
+python-multipart==0.0.32
+soundfile==0.14.0
+torch==2.13.0+cpu
+transformers==5.15.1
+uvicorn==0.52.4

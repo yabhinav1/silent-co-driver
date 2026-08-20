@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Silent Co-Driver</title>
+<script src="chart.min.js"></script>
+<style>
+:root{
+  --bg:#0b0b0f; --surface:#14141a; --surface-2:#1c1c24; --border:#2a2a35;
+  --muted:#8b8b99; --text:#f4f2ee; --acc:#e10600;
+  --calm:#3fb950; --elevated:#d29922; --tired:#d29922; --stress:#e10600;
+  --sp:8px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:''; position:fixed; inset:0 0 auto 0; height:3px; z-index:10;
+  background:linear-gradient(90deg, var(--acc) 0%, #8c0400 38%, transparent 72%);
+}
+.wrap{max-width:1240px; margin:0 auto; padding:36px 24px 64px}
+
+/* ---------------------------------------------------------- header */
+header{
+  border-bottom:1px solid var(--border); padding-bottom:24px; margin-bottom:32px;
+  display:flex; align-items:flex-start; justify-content:space-between; gap:32px;
+}
+.mark{flex:none; width:104px; height:auto; margin-top:4px}
+@media (max-width:640px){
+  header{flex-direction:column; gap:16px}
+  .mark{width:84px; margin-top:0}
+}
+.eyebrow{
+  font-size:12px; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--acc); font-weight:700; margin:0 0 8px
+}
+h1{font-size:40px; line-height:1.05; letter-spacing:-.03em; margin:0 0 8px; font-weight:700}
+header p{margin:0; color:var(--muted); max-width:65ch}
+
+/* ---------------------------------------------------------- layout */
+.cols{display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:1fr}}
+
+/* Sized to sit on roughly one screen without ever trapping content - the page
+   always scrolls, so the upload button is reachable on any window height. */
+@media (min-width:900px){
+  header{padding-bottom:16px; margin-bottom:20px}
+  h1{font-size:32px}
+  .clips-scroll{max-height:330px; overflow-y:auto; margin-right:-8px; padding-right:8px}
+}
+
+.card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px}
+.card h2{
+  font-size:12px; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--muted); font-weight:700; margin:0 0 16px
+}
+
+/* ---------------------------------------------------------- clip list */
+.drivers{display:grid; grid-template-columns:1fr 1fr; gap:6px; flex:none}
+.dtab{
+  text-align:left; background:var(--surface-2); border:1px solid transparent;
+  border-radius:8px; padding:9px 11px; color:var(--muted); font:inherit;
+  cursor:pointer; transition:color .15s ease-out, border-color .15s ease-out;
+}
+.dtab .code{
+  display:block; font:700 13px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.08em; color:var(--text);
+}
+.dtab .did{
+  display:block; font:10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--muted); letter-spacing:.06em; margin-top:2px;
+}
+.dtab .note{display:block; font-size:11px; margin-top:3px; line-height:1.3}
+.dtab:hover{border-color:var(--border)}
+.dtab:focus-visible{outline:2px solid var(--acc); outline-offset:2px}
+.dtab[aria-selected="true"]{border-color:var(--acc); color:var(--text)}
+.dtab[aria-selected="true"] .code{color:var(--acc)}
+
+.clips{display:flex; flex-direction:column; gap:4px; margin:0 0 24px}
+.clip{
+  display:flex; align-items:baseline; gap:12px; width:100%; text-align:left;
+  background:transparent; border:1px solid transparent; border-radius:8px;
+  padding:12px; color:var(--text); font:inherit; cursor:pointer;
+  transition:background .15s ease-out, border-color .15s ease-out;
+}
+.clip:hover{background:var(--surface-2)}
+.clip[aria-current="true"]{background:var(--surface-2); border-color:var(--acc)}
+.clip:focus-visible{outline:2px solid var(--acc); outline-offset:2px}
+.clip .lap{
+  font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--muted); letter-spacing:.05em; flex:none; width:44px
+}
+.clip .name{flex:1; font-size:14px}
+.clip .dot{width:8px; height:8px; border-radius:50%; flex:none; align-self:center}
+
+.clip.missing .name{color:var(--muted)}
+.tag{
+  font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+  border:1px solid var(--border); border-radius:4px; padding:2px 6px; align-self:center
+}
+.empty{color:var(--muted); font-size:14px; margin:0}
+.empty code{
+  background:var(--surface-2); padding:2px 6px; border-radius:4px;
+  font-size:13px; color:var(--text)
+}
+
+/* ---------------------------------------------------------- upload */
+.upload{border-top:1px solid var(--border); padding-top:20px; margin-top:16px; flex:none}
+.upload input[type=file]{display:none}
+.btn{
+  display:inline-block; width:100%; text-align:center; padding:12px 16px;
+  background:var(--acc); color:#fff; border:0; border-radius:8px;
+  font:600 14px/1.4 inherit; cursor:pointer; transition:opacity .15s ease-out;
+}
+.btn:hover{opacity:.88}
+.btn:active{opacity:.75}
+.btn:focus-visible{outline:2px solid var(--text); outline-offset:2px}
+audio{width:100%; margin-top:16px; height:36px}
+
+/* ---------------------------------------------------------- readout */
+.source{
+  margin:-8px 0 20px; font-size:13px; color:var(--muted);
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+}
+.source .pill{
+  font-size:11px; letter-spacing:.1em; text-transform:uppercase; font-weight:700;
+  padding:3px 8px; border-radius:4px; background:var(--surface-2); color:var(--muted);
+}
+.source .pill.upload{background:#e1060018; color:var(--acc)}
+.source .prov{
+  flex-basis:100%; font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--dim,#5d5d6c); word-break:break-all; margin-top:2px;
+}
+
+.readout.empty .score,
+.readout.empty .label,
+.readout.empty .meter,
+.readout.empty .meter-scale,
+.readout.empty .models{display:none}
+.readout.empty .gauge{min-width:0}
+
+.readout{display:grid; grid-template-columns:auto 1fr; gap:32px; align-items:start}
+@media (max-width:640px){.readout{grid-template-columns:1fr; gap:24px}}
+.gauge{text-align:center; min-width:132px}
+.score{
+  font:700 64px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:-.04em; display:block
+}
+.label{
+  display:inline-block; margin-top:8px; padding:4px 12px; border-radius:999px;
+  font:700 12px/1.6 inherit; letter-spacing:.15em
+}
+.label[data-l=CALM]{color:var(--calm); background:#3fb95018}
+.label[data-l=ELEVATED]{color:var(--elevated); background:#d2992218}
+.label[data-l=TIRED]{color:var(--tired); background:#d2992218}
+.label[data-l=STRESSED]{color:var(--stress); background:#e1060018}
+.score[data-l=CALM]{color:var(--calm)}
+.score[data-l=ELEVATED]{color:var(--elevated)}
+.score[data-l=TIRED]{color:var(--tired)}
+.score[data-l=STRESSED]{color:var(--stress)}
+
+/* the number alone was unreadable: 51 next to "CALM" looked like a bug.
+   the meter shows where it sits against the thresholds. */
+.meter{
+  position:relative; height:6px; width:100%; margin:18px 0 6px;
+  background:var(--surface-2); border-radius:3px;
+}
+.meter-fill{height:100%; border-radius:3px; transition:width .25s ease-out, background .25s ease-out}
+.meter-tick{position:absolute; top:-4px; width:2px; height:14px; background:#3a3a47}
+.key{list-style:none; margin:16px 0 0; padding:0; font-size:12px; color:var(--muted)}
+.key li{display:flex; align-items:center; gap:8px; margin-bottom:5px}
+.key i{width:8px; height:8px; border-radius:50%; flex:none}
+.meter-scale{
+  display:flex; justify-content:space-between; font-size:11px; color:var(--muted);
+  letter-spacing:.04em;
+}
+
+.transcript{font-size:20px; line-height:1.5; margin:0 0 24px; max-width:65ch}
+.transcript.placeholder{color:var(--muted); font-size:16px}
+.transcript .w{color:#77778a; transition:color .12s ease-out}
+.transcript .w.said{color:var(--text)}
+.transcript .w.now{color:var(--acc); font-weight:600}
+
+.more{margin-top:4px; border-top:1px solid var(--border); padding-top:8px; flex:none}
+#clips-all{max-height:260px; overflow-y:auto; margin-right:-8px; padding-right:8px}
+.more summary{
+  list-style:none; cursor:pointer; padding:8px 12px; border-radius:8px;
+  font-size:13px; color:var(--muted); display:flex; align-items:center;
+  justify-content:space-between; gap:8px;
+}
+.more summary::-webkit-details-marker{display:none}
+.more summary:hover{background:var(--surface-2); color:var(--text)}
+.more summary:focus-visible{outline:2px solid var(--acc); outline-offset:2px}
+.more summary .chev{transition:transform .2s ease-out; font-size:11px}
+.more[open] summary .chev{transform:rotate(180deg)}
+
+/* two model breakdowns, side by side - shows both models did work */
+.models{display:grid; grid-template-columns:1fr 1fr; gap:24px}
+@media (max-width:640px){.models{grid-template-columns:1fr}}
+.models h3{
+  font-size:12px; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--muted); font-weight:700; margin:0 0 12px
+}
+.bar{display:grid; grid-template-columns:64px 1fr 40px; gap:8px; align-items:center; margin-bottom:4px}
+.bar span{font-size:13px; color:var(--muted)}
+.bar .track{height:6px; background:var(--surface-2); border-radius:3px; overflow:hidden}
+.bar .fill{height:100%; background:var(--acc); border-radius:3px; transform-origin:left}
+.bar .pct{
+  font:12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--muted); text-align:right
+}
+
+/* ---------------------------------------------------------- chart */
+.right{display:flex; flex-direction:column; gap:24px; min-width:0}
+.chart-card{display:flex; flex-direction:column; min-height:0}
+.chart-box{height:300px; position:relative}
+.caption{
+  margin:24px 0 0; padding-top:24px; border-top:1px solid var(--border);
+  font-size:20px; line-height:1.5; max-width:65ch
+}
+.caption.placeholder{color:var(--muted); font-size:16px}
+.caption strong{color:var(--acc); font-weight:600}
+
+/* ---------------------------------------------------------- states */
+.skeleton{
+  background:linear-gradient(90deg,var(--surface-2) 25%,#24242e 50%,var(--surface-2) 75%);
+  background-size:200% 100%; animation:sweep 1.4s ease-in-out infinite;
+  border-radius:6px; color:transparent !important
+}
+@keyframes sweep{to{background-position:-200% 0}}
+.error{
+  color:var(--acc); font-size:14px; margin:16px 0 0;
+  padding:12px; background:#e1060012; border-radius:8px
+}
+[hidden]{display:none !important}
+@media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <p class="eyebrow">Problem statement 01</p>
+    <h1>The Silent Co-Driver</h1>
+    <p>Engineers watch the numbers, not the driver. This listens to team radio,
+       reads the stress in the voice, and lines it up against lap times.</p>
+  </div>
+  <svg class="mark" viewBox="0 0 128 46" role="img"
+       aria-label="Formula 1 team radio analysis">
+    <g fill="var(--acc)">
+      <path d="M4 4h44l-9 9H-5z"/>
+      <path d="M14 18h40l-9 9H5z" opacity=".72"/>
+      <path d="M24 32h34l-9 9H15z" opacity=".44"/>
+    </g>
+    <text x="70" y="35" font-family="ui-sans-serif,system-ui,sans-serif"
+          font-size="38" font-weight="800" font-style="italic"
+          letter-spacing="-2" fill="var(--text)">F1</text>
+  </svg>
+</header>
+
+<div class="cols">
+
+  <!-- ------------------------------------------------- clips -->
+  <section class="card clips-card">
+    <h2>Driver</h2>
+    <div class="drivers" id="drivers" role="tablist" aria-label="Driver"></div>
+    <h2 style="margin-top:20px">Team radio</h2>
+    <div class="clips-scroll">
+      <div class="clips" id="clips" role="group" aria-label="Key radio calls"></div>
+    </div>
+    <details class="more" id="more">
+      <summary><span id="more-label">All calls</span><span class="chev">▼</span></summary>
+      <div class="clips" id="clips-all" role="group" aria-label="All radio calls"></div>
+    </details>
+
+    <div class="upload">
+      <label class="btn" for="file">Upload a radio clip</label>
+      <input type="file" id="file" accept="audio/*">
+      <audio id="player" controls hidden></audio>
+      <p class="error" id="error" hidden></p>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------- analysis + chart -->
+  <div class="right">
+  <section class="card">
+    <h2>Driver state</h2>
+    <p class="source" id="source">No clip selected</p>
+    <div class="readout empty" id="readout">
+      <div class="gauge">
+        <span class="score" id="score" data-l="">--</span>
+        <span class="label" id="label" data-l="">NO CLIP</span>
+        <div class="meter">
+          <div class="meter-fill" id="meter" style="width:0"></div>
+          <span class="meter-tick" style="left:40%"></span>
+          <span class="meter-tick" style="left:55%"></span>
+        </div>
+        <div class="meter-scale"><span>calm</span><span>40</span><span>55</span><span>max</span></div>
+        <ul class="key">
+          <li><i style="background:#3fb950"></i>calm</li>
+          <li><i style="background:#d29922"></i>frustrated / tired</li>
+          <li><i style="background:#e10600"></i>highly emotional</li>
+        </ul>
+      </div>
+      <div>
+        <p class="transcript placeholder" id="transcript">
+          Pick a radio clip on the left to transcribe it and read the driver's tone.
+        </p>
+        <div class="models">
+          <div>
+            <h3>Vocal tone &middot; HuBERT</h3>
+            <div id="voice"></div>
+          </div>
+          <div>
+            <h3>Word emotion &middot; RoBERTa</h3>
+            <div id="text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card chart-card">
+    <h2>Stress against lap time</h2>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+    <p class="caption placeholder" id="caption">
+      Analyse a clip to see where the driver's stress sits against the stint.
+    </p>
+  </section>
+  </div>
+</div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const VOICE_NAMES = {ang:'Angry', sad:'Sad', neu:'Neutral', hap:'Happy'};
+// traffic light: green calm, amber frustrated or tired, red highly emotional
+const COLOR = {CALM:'#3fb950', ELEVATED:'#d29922', TIRED:'#d29922', STRESSED:'#e10600'};
+
+let drivers = [], driver = null;          // driver = the one being shown
+let laps = [], radio = [], median = 0, results = {}, race = {}, chart, active = null;
+const scoreFor = clip => results[clip] ? results[clip].score : null;
+
+/* ------------------------------------------------------------ chart */
+function buildChart() {
+  chart = new Chart($('chart'), {
+    data: {
+      labels: laps.map(l => l.lap),
+      datasets: [
+        { type:'bar', label:'Stress score', yAxisID:'y2', order:2,
+          data: laps.map(() => null), backgroundColor:'#e1060055',
+          borderColor:'#e10600', borderWidth:1, borderRadius:3 },
+        { type:'line', label:'Lap time', yAxisID:'y1', order:1,
+          data: laps.map(l => l.time), borderColor:'#f4f2ee', borderWidth:2,
+          pointRadius:0, pointHoverRadius:4, tension:.25 },
+      ]
+    },
+    options: {
+      maintainAspectRatio:false, animation:{duration:250},
+      interaction:{mode:'index', intersect:false},
+      scales: {
+        x:{ title:{display:true, text:'Lap', color:'#8b8b99'},
+            grid:{color:'#2a2a3555'}, ticks:{color:'#8b8b99'} },
+        y1:{ position:'left', title:{display:true, text:'Lap time (s)', color:'#8b8b99'},
+             grid:{color:'#2a2a3555'}, ticks:{color:'#8b8b99'} },
+        y2:{ position:'right', min:0, max:100,
+             title:{display:true, text:'Stress', color:'#8b8b99'},
+             grid:{display:false}, ticks:{color:'#8b8b99'} },
+      },
+      plugins:{ legend:{labels:{color:'#f4f2ee', boxWidth:12, usePointStyle:true,
+                                padding:16, font:{size:13}}} },
+      layout:{ padding:{top:4} }
+    }
+  });
+}
+
+function lapPeak(lap) {
+  // a lap can carry several radio calls - show the most stressed one
+  const scored = radio.filter(m => m.lap === lap && results[m.clip]).map(m => results[m.clip]);
+  return scored.length ? scored.reduce((a, b) => b.score > a.score ? b : a) : null;
+}
+
+function drawResults() {
+  const peaks = laps.map(l => lapPeak(l.lap));
+  chart.data.datasets[0].data = peaks.map(p => p ? p.score : null);
+  chart.data.datasets[0].backgroundColor = peaks.map(p => p ? COLOR[p.label] + '88' : '#0000');
+  chart.update();
+}
+
+/* ------------------------------------------------------------ caption */
+function setCaption(reset) {
+  const scored = radio.filter(m => results[m.clip]);
+  if (!scored.length) {
+    if (reset) {
+      $('caption').textContent =
+        'Analyse a clip to see where this driver\u2019s stress sits against the race.';
+      $('caption').classList.add('placeholder');
+    }
+    return;
+  }
+  const peak = scored.reduce((a, b) => results[b.clip].score > results[a.clip].score ? b : a);
+  const after = laps.find(l => l.lap === peak.lap + 1);
+  const r = results[peak.clip];
+  const own = laps.find(l => l.lap === peak.lap);
+  let msg = `Stress peaked at <strong>${r.score}</strong> on lap <strong>${peak.lap}</strong>`;
+  if (own && own.delta > 0.4) {
+    // the stress and the slow lap are the same lap
+    msg += `, which ran <strong>${own.delta.toFixed(2)}s</strong> over his race median.`;
+  } else if (after && after.delta > 0.4) {
+    msg += `. Lap ${after.lap} then ran <strong>${after.delta.toFixed(2)}s</strong> over his median.`;
+  } else if (after) {
+    msg += `, and lap ${after.lap} held pace &mdash; he absorbed it.`;
+  } else {
+    msg += '.';
+  }
+  $('caption').innerHTML = msg;
+  $('caption').classList.remove('placeholder');
+}
+
+/* ------------------------------------------------------------ clips */
+function renderDrivers() {
+  $('drivers').innerHTML = drivers.map(d => `
+    <button class="dtab" role="tab" data-code="${d.code}"
+            aria-selected="${d.code === driver.code}" title="${d.name}">
+      <span class="code">${d.name.split(' ').pop()}</span>
+      <span class="did">${d.driver_id}</span>
+      <span class="note">${d.note}</span>
+    </button>`).join('');
+  $('drivers').querySelectorAll('.dtab').forEach(b =>
+    b.onclick = () => selectDriver(b.dataset.code));
+}
+
+function selectDriver(code) {
+  driver = drivers.find(d => d.code === code) || drivers[0];
+  ({laps, radio, median} = driver);
+  active = null;
+  document.querySelector('.eyebrow').textContent = race.title + ' · ' + driver.name;
+  document.querySelector('header p:last-of-type').textContent =
+    `${laps.length} laps · ${radio.length} radio calls · ${driver.note}.`;
+  $('player').hidden = true;
+  $('player').removeAttribute('src');
+  resetReadout();
+  renderDrivers();
+  renderClips();
+  chart.data.labels = laps.map(l => l.lap);
+  chart.data.datasets[1].data = laps.map(l => l.time);
+  drawResults();
+  setCaption(true);
+}
+
+function resetReadout() {
+  $('readout').classList.add('empty');
+  $('score').textContent = '--';
+  $('score').dataset.l = '';
+  $('label').textContent = 'NO CLIP';
+  $('label').dataset.l = '';
+  $('meter').style.width = '0';
+  $('source').textContent = 'No clip selected';
+  $('transcript').textContent =
+    'Pick a radio call on the left to transcribe it and read the driver\u2019s tone.';
+  $('transcript').classList.add('placeholder');
+  $('voice').innerHTML = $('text').innerHTML = '';
+  $('error').hidden = true;
+  cursor = [];
+}
+
+function clipButton(m) {
+  const r = results[m.clip];
+  const dot = r ? `<span class="dot" style="background:${COLOR[r.label]}"
+                    aria-label="${r.label}"></span>` : '';
+  const label = r ? r.transcript.slice(0, 38) + (r.transcript.length > 38 ? '\u2026' : '')
+                  : m.utc;
+  return `<button class="clip${m.have ? '' : ' missing'}" data-clip="${m.clip}"
+                  aria-current="${active === m.clip}"
+                  ${m.have ? '' : `title="clips/${m.clip} not found"`}>
+            <span class="lap">LAP ${m.lap}</span>
+            <span class="name">${label}</span>
+            ${m.have ? dot : '<span class="tag">no file</span>'}
+          </button>`;
+}
+
+function renderClips() {
+  if (!radio.length) {
+    $('clips').innerHTML =
+      '<p class="empty">No radio calls listed. Add rows to <code>radio.csv</code> ' +
+      'and drop the audio into <code>clips/</code>, or upload one below.</p>';
+    $('more').hidden = true;
+    return;
+  }
+  const key = radio.filter(m => m.featured);
+  // if nothing is flagged in the csv, just show the first six
+  const head = key.length ? key : radio.slice(0, 6);
+  $('clips').innerHTML = head.map(clipButton).join('');
+  $('clips-all').innerHTML = radio.map(clipButton).join('');
+  $('more-label').textContent = `All ${radio.length} calls`;
+  $('more').hidden = radio.length <= head.length;
+
+  document.querySelectorAll('.clip').forEach(b =>
+    b.onclick = () => analyse({clip: b.dataset.clip}));
+}
+
+/* ------------------------------------------------------------ readout */
+function bars(el, scores, names) {
+  const top = Object.entries(scores).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  el.innerHTML = top.map(([k, v]) => `
+    <div class="bar">
+      <span>${names[k] || k[0].toUpperCase() + k.slice(1)}</span>
+      <div class="track"><div class="fill" style="width:${(v * 100).toFixed(0)}%"></div></div>
+      <span class="pct">${(v * 100).toFixed(0)}%</span>
+    </div>`).join('');
+}
+
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let cursor = [];                      // [{el, t}] - one per timed word
+
+function renderTranscript(r) {
+  const t = $('transcript');
+  t.classList.remove('placeholder');
+  if (!r.words || !r.words.length) {           // older cache entry, no timings
+    t.textContent = '“' + r.transcript + '”';
+    cursor = [];
+    return;
+  }
+  t.innerHTML = '“' + r.words.map((w, i) =>
+    `<span class="w" data-i="${i}">${esc(w.w)}</span>`).join('') + '”';
+  cursor = [...t.querySelectorAll('.w')].map((el, i) => ({el, t: r.words[i].t}));
+  syncWords(-1);                               // all dim until the audio rolls
+}
+
+function syncWords(time) {
+  let cur = -1;
+  cursor.forEach((c, i) => { if (time >= c.t) cur = i; });
+  cursor.forEach((c, i) => {
+    c.el.classList.toggle('said', i <= cur);
+    c.el.classList.toggle('now', i === cur);
+  });
+}
+
+function findCall(clip) {
+  for (const d of drivers) {
+    const m = d.radio.find(x => x.clip === clip);
+    if (m) return {d, m};
+  }
+  return null;
+}
+
+function setSource(r) {
+  const found = findCall(r.clip);
+  const m = found && found.m;
+  if (m) {
+    $('source').innerHTML =
+      `<span class="pill">Lap ${m.lap}</span> ${m.utc} UTC` +
+      `<span>&middot;</span><span>${found.d.name}</span>` +
+      `<span class="prov">${race.dataset} &middot; row ${m.row} &middot; ${m.dataset_id}</span>`;
+  } else {
+    // an uploaded file is not part of the loaded race - say so, loudly enough
+    // that nobody reads the header above and assumes it is the same driver
+    const name = (r.clip || '').replace(/^upload:/, '');
+    $('source').innerHTML =
+      `<span class="pill upload">Uploaded</span> ${name}` +
+      `<span>&middot;</span><span>not part of this race</span>`;
+  }
+}
+
+function show(r) {
+  $('readout').classList.remove('empty');
+  setSource(r);
+  $('score').textContent = r.score;
+  $('score').dataset.l = r.label;
+  $('label').textContent = r.label;
+  $('label').dataset.l = r.label;
+  $('meter').style.width = r.score + '%';
+  $('meter').style.background = COLOR[r.label] || 'var(--muted)';
+  renderTranscript(r);
+  bars($('voice'), r.voice, VOICE_NAMES);
+  bars($('text'), r.text, {});
+  [$('score'), $('label'), $('transcript')].forEach(e => e.classList.remove('skeleton'));
+}
+
+function loading() {
+  cursor = [];
+  $('readout').classList.remove('empty');
+  $('source').textContent = 'Analysing\u2026';
+  [$('score'), $('label'), $('transcript')].forEach(e => e.classList.add('skeleton'));
+  $('voice').innerHTML = $('text').innerHTML = '';
+  $('error').hidden = true;
+}
+
+/* ------------------------------------------------------------ analyse */
+async function analyse({clip, file}) {
+  active = clip || null;
+  loading();
+  renderClips();
+
+  if (clip) {
+    $('player').src = '/clips/' + encodeURIComponent(clip);
+    $('player').hidden = false;
+    $('player').play().catch(() => {});   // autoplay may be blocked; controls still work
+  }
+
+  const body = new FormData();
+  if (clip) body.append('clip', clip); else body.append('file', file);
+
+  try {
+    const res = await fetch('/api/analyse', {method:'POST', body});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'analysis failed');
+    results[data.clip] = data;
+    if (file) {                                  // uploads have no lap of their own
+      $('player').src = URL.createObjectURL(file);
+      $('player').hidden = false;
+    }
+    show(data);
+    renderClips();
+    drawResults();
+    setCaption();
+  } catch (e) {
+    $('error').textContent = e.message;
+    $('error').hidden = false;
+    $('score').textContent = '--';
+    $('label').textContent = 'NO CLIP';
+    $('transcript').textContent = 'That clip could not be analysed. Try another.';
+    [$('score'), $('label'), $('transcript')].forEach(el => el.classList.remove('skeleton'));
+  }
+}
+
+$('player').addEventListener('timeupdate', () => syncWords($('player').currentTime));
+$('player').addEventListener('seeked',     () => syncWords($('player').currentTime));
+$('player').addEventListener('ended',      () => syncWords(Infinity));
+
+$('file').onchange = e => { if (e.target.files[0]) analyse({file: e.target.files[0]}); };
+
+/* ------------------------------------------------------------ boot */
+fetch('/api/laps').then(r => r.json()).then(d => {
+  ({drivers, results, race} = d);
+  // open on the driver with the most radio calls - the richest demo
+  driver = drivers.reduce((a, b) => b.radio.length > a.radio.length ? b : a);
+  ({laps, radio, median} = driver);
+  buildChart();
+  selectDriver(driver.code);
+  // ?clip=name replays one straight from cache - handy for reloading mid-demo
+  const want = new URLSearchParams(location.search).get('clip');
+  if (want) {
+    const found = findCall(want);
+    if (found && found.d.code !== driver.code) selectDriver(found.d.code);
+    analyse({clip: want});
+  }
+});
+</script>
+</body>
+</html>
